@@ -23,33 +23,12 @@ rapidocr/
     └── rapidocr-api.md   # RapidOCR API reference
 ```
 
-## Install via skills.sh (Recommended)
-
-Install to your AI Agent with one command using the [skills.sh](https://skills.sh) CLI:
-
-```bash
-npx skills add pwh-pwh/rapid-ocr --yes
-```
-
-Automatically configures for Claude Code, Cursor, Codex, GitHub Copilot, OpenCode, and other popular agents.
-skills.sh page: https://skills.sh/pwh-pwh/rapid-ocr/rapidocr
-
-## Manual Installation
-
-```bash
-git clone git@github.com:pwh-pwh/rapid-ocr.git ~/.hermes/skills/rapidocr
-cd ~/.hermes/skills/rapidocr
-uv sync
-```
-
-All dependencies are installed in the skill's local `.venv`, with no external project dependencies.
-
 ## Usage
 
 ### Direct Recognition
 
 ```bash
-cd ~/.hermes/skills/rapidocr && uv run python scripts/ocr_rapid.py <image_path>
+cd <skill_dir> && uv run python scripts/ocr_rapid.py <image_path>
 ```
 
 The first run auto-starts the persistent service (model loading takes ~6s), subsequent recognitions take ~3s.
@@ -57,7 +36,7 @@ The first run auto-starts the persistent service (model loading takes ~6s), subs
 ### Manual Service Start
 
 ```bash
-cd ~/.hermes/skills/rapidocr && uv run python scripts/ocr_server.py &
+cd <skill_dir> && uv run python scripts/ocr_server.py &
 ```
 
 The service listens on `127.0.0.1:9898`, accepting POST `/ocr` with JSON `{"image_path": "..."}`.
