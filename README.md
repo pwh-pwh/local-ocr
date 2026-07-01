@@ -22,33 +22,12 @@ rapidocr/
     └── rapidocr-api.md   # RapidOCR API 参考
 ```
 
-## 通过 skills.sh 安装（推荐）
-
-使用 [skills.sh](https://skills.sh) CLI 一键安装到你的 AI Agent：
-
-```bash
-npx skills add pwh-pwh/rapid-ocr --yes
-```
-
-安装后自动配置到 Claude Code、Cursor、Codex、GitHub Copilot、OpenCode 等主流 Agent。
-skills.sh 页面：https://skills.sh/pwh-pwh/rapid-ocr/rapidocr
-
-## 手动安装
-
-```bash
-git clone git@github.com:pwh-pwh/rapid-ocr.git ~/.hermes/skills/rapidocr
-cd ~/.hermes/skills/rapidocr
-uv sync
-```
-
-依赖全部安装在 skill 目录内的 `.venv`，不依赖外部项目。
-
 ## 使用方法
 
 ### 直接识别
 
 ```bash
-cd ~/.hermes/skills/rapidocr && uv run python scripts/ocr_rapid.py <image_path>
+cd <skill_dir> && uv run python scripts/ocr_rapid.py <image_path>
 ```
 
 首次运行会自动启动常驻服务（加载模型约 6 秒），后续识别约 3 秒。
@@ -56,7 +35,7 @@ cd ~/.hermes/skills/rapidocr && uv run python scripts/ocr_rapid.py <image_path>
 ### 手动启动常驻服务
 
 ```bash
-cd ~/.hermes/skills/rapidocr && uv run python scripts/ocr_server.py &
+cd <skill_dir> && uv run python scripts/ocr_server.py &
 ```
 
 服务监听 `127.0.0.1:9898`，POST `/ocr` 接收 JSON `{"image_path": "..."}`。

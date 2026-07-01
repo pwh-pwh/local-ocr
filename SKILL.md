@@ -19,9 +19,9 @@ version: 3.0.1
 ## 环境说明
 本 skill 自带独立 uv 环境，所有依赖在 skill 目录内的 pyproject.toml 管理，不依赖外部项目目录。
 
-首次使用前如需重建环境：
+首次使用前如需重建环境，在技能所在目录执行：
 ```bash
-cd ~/.hermes/skills/rapidocr && uv sync
+cd <skill_dir> && uv sync
 ```
 依赖见 pyproject.toml：rapidocr-onnxruntime、onnxruntime、opencv-python、numpy、pillow、PyYAML。
 
@@ -47,12 +47,12 @@ rapidocr/
 
 ### 1. 启动常驻服务（首次使用）
 ```bash
-cd ~/.hermes/skills/rapidocr && uv run python scripts/ocr_server.py &
+cd <skill_dir> && uv run python scripts/ocr_server.py &
 ```
 
 ### 2. 执行OCR识别
 ```bash
-cd ~/.hermes/skills/rapidocr && uv run python scripts/ocr_rapid.py <image_path>
+cd <skill_dir> && uv run python scripts/ocr_rapid.py <image_path>
 ```
 ocr_rapid.py 会自动检测服务是否运行，未运行则自动启动，无需手动管理服务。
 
@@ -63,13 +63,6 @@ ocr_rapid.py 会自动检测服务是否运行，未运行则自动启动，无�
 - 常驻服务模式：模型只加载一次，后续识别约3秒
 - 禁用方向分类 (`use_cls=False`)
 - 减小最大边长 (`max_side_len=640`)
-
-## 仓库与发布
-- GitHub: https://github.com/pwh-pwh/rapid-ocr
-- skills.sh 页面: https://skills.sh/pwh-pwh/rapid-ocr/rapidocr
-- 安装命令: `npx skills add https://github.com/pwh-pwh/rapid-ocr --skill rapidocr`
-- Git remotes: `origin`（内网 10.200.50.16）、`github`（公网）
-- Tag: v3.0.1
 
 ## 注意事项
 1. 使用 skill 目录内的 uv 环境运行（cd 到 skill 目录后 uv run）
