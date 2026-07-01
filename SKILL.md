@@ -64,6 +64,13 @@ ocr_rapid.py 会自动检测服务是否运行，未运行则自动启动，无�
 - 禁用方向分类 (`use_cls=False`)
 - 减小最大边长 (`max_side_len=640`)
 
+## 仓库与发布
+- GitHub: https://github.com/pwh-pwh/rapid-ocr
+- skills.sh 页面: https://skills.sh/pwh-pwh/rapid-ocr/rapidocr
+- 安装命令: `npx skills add https://github.com/pwh-pwh/rapid-ocr --skill rapidocr`
+- Git remotes: `origin`（内网 10.200.50.16）、`github`（公网）
+- Tag: v3.0.1
+
 ## 注意事项
 1. 使用 skill 目录内的 uv 环境运行（cd 到 skill 目录后 uv run）
 2. 支持中英文混合识别
