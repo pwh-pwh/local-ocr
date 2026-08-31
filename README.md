@@ -1,58 +1,51 @@
-# rapidocr Skill
+# local-ocr
 
-RapidOCR 图片文字识别技能，支持中英文混合识别。
+本地中文 OCR 技能。引擎是 [ocr-rs](https://crates.io/crates/ocr-rs)（PaddleOCR PP-OCRv6 + MNN），不再使用 RapidOCR / Python。
 
-基于 [RapidOCR](https://github.com/RapidAI/RapidOCR)（Apache License 2.0）。本 skill 遵循 Apache License 2.0 协议。
+Apache License 2.0。
 
-## 目录结构
+## 结构
 
 ```
-rapidocr/
-├── SKILL.md              # 技能定义文件（Agent 自动加载）
-├── README.md             # 本文档
-├── pyproject.toml        # uv 依赖声明
-├── .python-version       # Python 版本 (3.13)
-├── uv.lock               # 依赖锁定
-├── .gitignore
-├── scripts/
-│   ├── ocr_rapid.py      # 主识别脚本（入口）
-│   ├── ocr_server.py     # 常驻 HTTP 服务 (端口 9898)
-│   └── ocr_preload.py    # 模型预加载
-└── references/
-    └── rapidocr-api.md   # RapidOCR API 参考
+local-ocr/
+├── SKILL.md
+├── scripts/ocr                 # Agent 入口
+├── scripts/doctor.sh           # 编译引擎 + 下载 tiny 模型
+├── scripts/download-models.sh
+└── engine/                     # Rust 引擎（ocr-rs）
 ```
 
-## 使用方法
+模型默认在 `~/.cache/ocr-rs/models/`，不进 git。可用 `LOCAL_OCR_MODELS` 改路径。
 
-### 直接识别
+## 准备
+
+需要 rustc、cargo、cmake、clang（仅首次编译引擎）。
 
 ```bash
-cd <skill_dir> && uv run python scripts/ocr_rapid.py <image_path>
+cd <skill_dir>
+bash scripts/doctor.sh
 ```
 
-首次运行会自动启动常驻服务（加载模型约 6 秒），后续识别约 3 秒。
-
-### 手动启动常驻服务
+## 使用
 
 ```bash
-cd <skill_dir> && uv run python scripts/ocr_server.py &
+scripts/ocr photo.jpg
+scripts/ocr --format json --tier tiny photo.jpg
+scripts/ocr --tier medium --robust scan.png
 ```
 
-服务监听 `127.0.0.1:9898`，POST `/ocr` 接收 JSON `{"image_path": "..."}`。
+默认输出纯文本，每行一条。JSON 含 `ok`、`text`、`lines`。
 
-## 优化配置
+档位：`tiny`（默认，快）/ `small` / `medium`（准）。medium 模型：
 
-| 参数 | 值 | 说明 |
-|------|-----|------|
-| `use_cls` | False | 禁用方向分类，减少模型加载 |
-| `max_side_len` | 640 | 缩小图片输入，约 40% 提速 |
-| `det_use_cuda` | False | CPU 推理 |
+```bash
+bash scripts/download-models.sh medium
+```
 
-## 依赖
+## 环境变量
 
-- rapidocr-onnxruntime >= 1.4.4
-- onnxruntime >= 1.27.0
-- opencv-python >= 4.13.0
-- numpy >= 2.5.0
-- pillow >= 12.2.0
-- PyYAML >= 6.0.3
+| 变量 | 作用 |
+|---|---|
+| `LOCAL_OCR_BIN` | 自定义引擎二进制 |
+| `LOCAL_OCR_MODELS` | 模型目录 |
+| `OCR_RS_MODEL_BASE` | 模型下载 URL 前缀 |

@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# local-ocr 入口。引擎 stdout 可能夹杂 MNN 日志，这里抽出第一个 JSON。
+set -euo pipefail
+
+SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+FORMAT="text"
+TIER="tiny"
+ROBUST=0
+IMAGE=""
+
+usage() {
+  echo "用法: $0 [--tier tiny|small|medium] [--robust] [--format text|json] <image_or_url>" >&2
+  exit 2
+}
+
+json_err() {
+  local error="$1"
+  local hint="${2:-}"
+  if [[ "$FORMAT" == json ]]; then
+    python3 -c 'import json,sys; d={"ok":False,"error":sys.argv[1]};
+hint=sys.argv[2];
+print(json.dumps({**d, **({"hint":hint} if hint else {})}, ensure_ascii=False))' "$error" "$hint"
+  else
+    echo "error: $error${hint:+ ($hint)}" >&2
+  fi
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --tier) TIER="${2:-}"; shift 2 ;;
+    --robust) ROBUST=1; shift ;;
+    --format|-f) FORMAT="${2:-}"; shift 2 ;;
+    -h|--help) usage ;;
+    --) shift; break ;;
+    -*) echo "未知参数: $1" >&2; usage ;;
+    *) IMAGE="$1"; shift ;;
+  esac
+done
+[[ -z "$IMAGE" && $# -gt 0 ]] && IMAGE="$1"
+[[ -z "$IMAGE" ]] && usage
+
+find_engine() {
+  if [[ -n "${LOCAL_OCR_BIN:-}" && -x "${LOCAL_OCR_BIN}" ]]; then
+    echo "$LOCAL_OCR_BIN"
+    return
+  fi
+  local cand
+  for cand in \
+    "$SKILL_DIR/bin/local-ocr-engine" \
+    "$SKILL_DIR/engine/target/release/local-ocr-engine"
+  do
+    if [[ -x "$cand" ]]; then
+      echo "$cand"
+      return
+    fi
+  done
+  return 1
+}
+
+ENGINE="$(find_engine || true)"
+[[ -n "$ENGINE" ]] || json_err engine_missing "在技能目录执行 bash scripts/doctor.sh"
+
+WORKDIR="${TMPDIR:-/tmp}/local-ocr-$$"
+cleanup() { rm -rf "$WORKDIR"; }
+trap cleanup EXIT
+mkdir -p "$WORKDIR"
+
+INPUT="$IMAGE"
+if [[ "$IMAGE" == http://* || "$IMAGE" == https://* ]]; then
+  INPUT="$WORKDIR/input"
+  curl -fsSL --retry 2 -o "$INPUT" "$IMAGE" || json_err download_failed
+elif [[ ! -f "$IMAGE" ]]; then
+  json_err image_not_found "$IMAGE"
+fi
+
+CMD=("$ENGINE" "$INPUT" --tier "$TIER" --format json)
+[[ "$ROBUST" -eq 1 ]] && CMD+=(--robust)
+[[ -n "${LOCAL_OCR_MODELS:-}" ]] && CMD+=(--models-dir "$LOCAL_OCR_MODELS")
+
+set +e
+RAW="$("${CMD[@]}" 2>/dev/null)"
+STATUS=$?
+set -e
+
+export LOCAL_OCR_FORMAT="$FORMAT"
+export LOCAL_OCR_STATUS="$STATUS"
+printf '%s' "$RAW" | python3 -c '
+import json, os, sys
+fmt = os.environ["LOCAL_OCR_FORMAT"]
+status = int(os.environ["LOCAL_OCR_STATUS"])
+raw = sys.stdin.read()
+start = raw.find("{")
+if start < 0:
+    err = {"ok": False, "error": "infer_failed"}
+    if fmt == "json":
+        print(json.dumps(err, ensure_ascii=False))
+    else:
+        print("error: infer_failed", file=sys.stderr)
+    sys.exit(1)
+obj, _ = json.JSONDecoder().raw_decode(raw[start:])
+if not obj.get("ok", False) or status != 0:
+    if fmt == "json":
+        print(json.dumps(obj, ensure_ascii=False))
+    else:
+        print("error: %s" % obj.get("error", "infer_failed"), file=sys.stderr)
+        if obj.get("hint"):
+            print(obj["hint"], file=sys.stderr)
+    sys.exit(1)
+if fmt == "json":
+    print(json.dumps(obj, ensure_ascii=False))
+else:
+    text = obj.get("text") or ""
+    print(text if text else "(未识别到文本)")
+'

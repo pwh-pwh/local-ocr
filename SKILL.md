@@ -1,71 +1,40 @@
 ---
-name: rapidocr
-description: 使用RapidOCR识别图片中的文字，支持中英文识别。当用户在飞书发送图片并提到"识别图片"、"ocr"、"提取文字"等关键词时使用。
-version: 3.0.1
+name: local-ocr
+description: 本地中文 OCR（ocr-rs / PP-OCRv6）。识别本地图片、截图、证件、票据、扫描件中的文字。用户提到 OCR、识别图片、提取文字、识别截图时使用。飞书消息里的图先下载到本地再调用本技能。不要用 Python PaddleOCR 或 RapidOCR。
+version: 4.0.0
+metadata:
+  requires:
+    bins: ["curl"]
 ---
 
-# RapidOCR 图片文字识别
+# local-ocr
 
-## 功能描述
-使用RapidOCR识别图片中的文字，只返回识别到的文字内容，每行一条。
+本机 PP-OCRv6（ocr-rs + MNN）。默认 tiny，印刷体中英文够用。
 
-## 使用场景
-当用户在飞书发送图片并提到以下关键词时触发：
-- 识别图片
-- OCR
-- 提取文字
-- 识别文字
+## 入口
 
-## 环境说明
-本 skill 自带独立 uv 环境，所有依赖在 skill 目录内的 pyproject.toml 管理，不依赖外部项目目录。
+定位本 skill 目录（例如 `~/.hermes/skills/local-ocr`），然后：
 
-首次使用前如需重建环境，在技能所在目录执行：
 ```bash
-cd <skill_dir> && uv sync
-```
-依赖见 pyproject.toml：rapidocr-onnxruntime、onnxruntime、opencv-python、numpy、pillow、PyYAML。
-
-## 目录结构
-```
-rapidocr/
-├── SKILL.md              # 技能定义文件（Agent 自动加载）
-├── pyproject.toml          # uv 环境依赖声明
-├── .python-version         # 3.13
-├── uv.lock
-├── .venv/                  # uv sync 创建（.gitignore 排除）
-├── scripts/
-│   ├── ocr_rapid.py        # 主识别脚本（自动启动服务→优先走服务→降级直连）
-│   ├── ocr_server.py       # 常驻 HTTP 服务 (端口 9898)
-│   └── ocr_preload.py      # 模型预加载
-└── references/
-    └── rapidocr-api.md     # RapidOCR API 参数参考
+"<skill_dir>/scripts/ocr" [--tier tiny|small|medium] [--robust] [--format text|json] <image_or_url>
 ```
 
-所有脚本通过 `SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))` 自动定位 skill 目录，不硬编码绝对路径。
+- 缺引擎或模型：先 `bash "<skill_dir>/scripts/doctor.sh"`
+- 默认 `--format text`：stdout 每行一条识别文本，不要再加说明
+- `--format json`：`ok`、`text`、`lines`（含 bbox/confidence）、`infer_ms`
+- 图片可以是本地路径或 http(s) URL
+- 混排竖排加 `--robust`
+- 要更高精度再用 `--tier medium`（更慢）
 
-## 执行步骤
+## 失败
 
-### 1. 启动常驻服务（首次使用）
-```bash
-cd <skill_dir> && uv run python scripts/ocr_server.py &
-```
+stdout/stderr 里的 `error`：
 
-### 2. 执行OCR识别
-```bash
-cd <skill_dir> && uv run python scripts/ocr_rapid.py <image_path>
-```
-ocr_rapid.py 会自动检测服务是否运行，未运行则自动启动，无需手动管理服务。
+| error | 处理 |
+|---|---|
+| `engine_missing` / `model_missing` | 跑 `scripts/doctor.sh` |
+| `image_not_found` | 向用户要有效路径 |
+| `download_failed` | URL 不可达 |
+| `infer_failed` | 换图或改 `--tier medium` |
 
-### 3. 返回结果
-直接返回识别到的文字，每行一条，不添加任何额外说明。
-
-## 优化配置
-- 常驻服务模式：模型只加载一次，后续识别约3秒
-- 禁用方向分类 (`use_cls=False`)
-- 减小最大边长 (`max_side_len=640`)
-
-## 注意事项
-1. 使用 skill 目录内的 uv 环境运行（cd 到 skill 目录后 uv run）
-2. 支持中英文混合识别
-3. 图片路径可以是本地路径或URL
-4. .venv 不纳入 git，重建环境只需 `uv sync`
+不要改去调 Python OCR。

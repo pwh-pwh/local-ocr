@@ -1,0 +1,6 @@
+# crates.io 在部分代理下 TLS 会失败，改走 rsproxy。直连正常时可删。
+[source.crates-io]
+replace-with = "rsproxy-sparse"
+
+[source.rsproxy-sparse]
+registry = "sparse+https://rsproxy.cn/index/"
