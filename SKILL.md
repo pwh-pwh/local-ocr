@@ -19,7 +19,7 @@ metadata:
 "<skill_dir>/scripts/ocr" [--tier tiny|small|medium] [--robust] [--format text|json] <image_or_url>
 ```
 
-- 第一次调用会自动准备引擎和 tiny 模型（Linux x64 用仓库预编译包；Windows / macOS / ARM 从 GitHub Release 拉）
+- 第一次调用会自动准备引擎和 tiny 模型（Linux / macOS Apple Silicon / Windows x64 用仓库 `prebuilt/`）
 - Linux/macOS：`bash "<skill_dir>/scripts/doctor.sh"`
 - Windows：`powershell -File "<skill_dir>/scripts/doctor.ps1"`（或 `scripts\doctor.cmd`）
 - 默认 `--format text`：stdout 每行一条识别文本，不要再加说明

@@ -22,8 +22,8 @@ powershell -ExecutionPolicy Bypass -File scripts\ocr.ps1 photo.jpg
 
 `doctor` uses, in order:
 
-1. `prebuilt/<target>/` (Linux x86_64 is in git)
-2. GitHub Releases, including **Windows x64 `.exe`**
+1. `prebuilt/<target>/` (Linux x64/ARM, macOS Apple Silicon, Windows x64)
+2. GitHub Releases if the current target is not in the repo
 3. Local `cargo build` only if neither is available
 
 Models: `~/.cache/ocr-rs/models/` on Unix, `%LOCALAPPDATA%\ocr-rs\models` on Windows.
