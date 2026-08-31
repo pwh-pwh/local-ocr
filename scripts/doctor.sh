@@ -24,8 +24,10 @@ PREBUILT="$PREBUILT_DIR/local-ocr-engine${EXT}"
 echo "== local-ocr doctor =="
 echo "平台: ${TARGET:-unknown}  版本: $TAG"
 
+engine_ok() { [[ -x "$1" || -f "$1" ]]; }
+
 need_engine=0
-if [[ "$FORCE" -eq 1 || ! -x "$DEST" ]]; then
+if [[ "$FORCE" -eq 1 ]] || ! engine_ok "$DEST"; then
   need_engine=1
 fi
 
@@ -41,7 +43,7 @@ verify_sha() {
 }
 
 install_from_prebuilt() {
-  [[ -n "$TARGET" && -x "$PREBUILT" ]] || return 1
+  [[ -n "$TARGET" && ( -x "$PREBUILT" || -f "$PREBUILT" ) ]] || return 1
   echo "使用仓库预编译包: $PREBUILT"
   verify_sha "$PREBUILT_DIR" "local-ocr-engine${EXT}"
   mkdir -p "$DEST_DIR"
@@ -107,5 +109,5 @@ bash "$SKILL_DIR/scripts/download-models.sh" tiny
 
 echo "OK  入口: $SKILL_DIR/scripts/ocr"
 echo "    引擎: $DEST"
-echo "    模型: ${LOCAL_OCR_MODELS:-$HOME/.cache/ocr-rs/models}"
+echo "    模型: $(default_models_dir)"
 echo "无需长期安装 Rust。"

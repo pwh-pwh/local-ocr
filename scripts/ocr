@@ -3,6 +3,8 @@
 set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib.sh
+source "$SKILL_DIR/scripts/lib.sh"
 FORMAT="text"
 TIER="tiny"
 ROBUST=0
@@ -17,7 +19,7 @@ json_err() {
   local error="$1"
   local hint="${2:-}"
   if [[ "$FORMAT" == json ]]; then
-    python3 -c 'import json,sys; d={"ok":False,"error":sys.argv[1]};
+    run_python -c 'import json,sys; d={"ok":False,"error":sys.argv[1]};
 hint=sys.argv[2];
 print(json.dumps({**d, **({"hint":hint} if hint else {})}, ensure_ascii=False))' "$error" "$hint"
   else
@@ -41,20 +43,17 @@ done
 [[ -z "$IMAGE" ]] && usage
 
 find_engine() {
-  if [[ -n "${LOCAL_OCR_BIN:-}" && -x "${LOCAL_OCR_BIN}" ]]; then
+  if [[ -n "${LOCAL_OCR_BIN:-}" && ( -x "${LOCAL_OCR_BIN}" || -f "${LOCAL_OCR_BIN}" ) ]]; then
     echo "$LOCAL_OCR_BIN"
     return
   fi
   local cand
-  for cand in \
-    "$SKILL_DIR/bin/local-ocr-engine" \
-    "$SKILL_DIR/engine/target/release/local-ocr-engine"
-  do
-    if [[ -x "$cand" ]]; then
+  while IFS= read -r cand; do
+    if [[ -x "$cand" || -f "$cand" ]]; then
       echo "$cand"
       return
     fi
-  done
+  done < <(engine_candidates "$SKILL_DIR")
   return 1
 }
 
@@ -81,9 +80,8 @@ elif [[ ! -f "$IMAGE" ]]; then
   json_err image_not_found "$IMAGE"
 fi
 
-CMD=("$ENGINE" "$INPUT" --tier "$TIER" --format json)
+CMD=("$ENGINE" "$INPUT" --tier "$TIER" --format json --models-dir "$(default_models_dir)")
 [[ "$ROBUST" -eq 1 ]] && CMD+=(--robust)
-[[ -n "${LOCAL_OCR_MODELS:-}" ]] && CMD+=(--models-dir "$LOCAL_OCR_MODELS")
 
 set +e
 RAW="$("${CMD[@]}" 2>/dev/null)"
@@ -92,7 +90,7 @@ set -e
 
 export LOCAL_OCR_FORMAT="$FORMAT"
 export LOCAL_OCR_STATUS="$STATUS"
-printf '%s' "$RAW" | python3 -c '
+printf '%s' "$RAW" | run_python -c '
 import json, os, sys
 fmt = os.environ["LOCAL_OCR_FORMAT"]
 status = int(os.environ["LOCAL_OCR_STATUS"])

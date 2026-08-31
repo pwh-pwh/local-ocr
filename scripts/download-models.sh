@@ -7,7 +7,10 @@ case "$TIER" in
   *) echo "档位: tiny | small | medium" >&2; exit 2 ;;
 esac
 
-DEST="${LOCAL_OCR_MODELS:-${XDG_CACHE_HOME:-$HOME/.cache}/ocr-rs/models}"
+SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib.sh
+source "$SKILL_DIR/scripts/lib.sh"
+DEST="$(default_models_dir)"
 BASE="${OCR_RS_MODEL_BASE:-https://raw.githubusercontent.com/zibo-chen/rust-paddle-ocr/next/models}"
 mkdir -p "$DEST"
 

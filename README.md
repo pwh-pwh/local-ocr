@@ -8,23 +8,29 @@
 
 把本目录放到 Agent 的 skills 路径下（例如 `~/.hermes/skills/local-ocr`），然后：
 
+**Linux / macOS**
+
 ```bash
 bash scripts/doctor.sh
-```
-
-或直接识别，第一次会自动准备：
-
-```bash
 scripts/ocr photo.jpg
 ```
 
-`doctor.sh` 顺序：
+**Windows**（PowerShell，不必装 Git Bash / Rust）
 
-1. 仓库内 `prebuilt/<target>/`（目前带 **Linux x86_64**）
-2. GitHub Release：https://github.com/pwh-pwh/local-ocr/releases
-3. 都没有才尝试本机 `cargo build`（这时才需要 Rust / cmake / clang）
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\doctor.ps1
+powershell -ExecutionPolicy Bypass -File scripts\ocr.ps1 photo.jpg
+```
 
-模型下载到 `~/.cache/ocr-rs/models/`（可用 `LOCAL_OCR_MODELS` 改）。
+也可双击或在 cmd 里跑 `scripts\ocr.cmd`。第一次调用识别入口会自动 doctor。
+
+准备顺序：
+
+1. 仓库内 `prebuilt/<target>/`（git 里带 **Linux x86_64**）
+2. GitHub Release：https://github.com/pwh-pwh/local-ocr/releases（含 **Windows x64 `.exe`**、macOS、Linux ARM）
+3. 都没有才本机 `cargo build`
+
+模型目录：Linux/macOS 为 `~/.cache/ocr-rs/models/`，Windows 为 `%LOCALAPPDATA%\ocr-rs\models`（可用 `LOCAL_OCR_MODELS` 改）。
 
 ## 使用
 

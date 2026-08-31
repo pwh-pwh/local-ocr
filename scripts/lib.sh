@@ -20,7 +20,7 @@ detect_target() {
         *) echo "" ;;
       esac
       ;;
-    MINGW*|MSYS*|CYGWIN*)
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
       echo "x86_64-pc-windows-msvc"
       ;;
     *)
@@ -29,12 +29,45 @@ detect_target() {
   esac
 }
 
+default_models_dir() {
+  if [[ -n "${LOCAL_OCR_MODELS:-}" ]]; then
+    echo "$LOCAL_OCR_MODELS"
+    return
+  fi
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+      echo "${LOCALAPPDATA:-$HOME/AppData/Local}/ocr-rs/models"
+      ;;
+    *)
+      echo "${XDG_CACHE_HOME:-$HOME/.cache}/ocr-rs/models"
+      ;;
+  esac
+}
+
+engine_candidates() {
+  local root="$1"
+  echo "$root/bin/local-ocr-engine.exe"
+  echo "$root/bin/local-ocr-engine"
+  echo "$root/engine/target/release/local-ocr-engine.exe"
+  echo "$root/engine/target/release/local-ocr-engine"
+}
+
 engine_filename() {
   local target="$1"
   if [[ "$target" == *windows* ]]; then
     echo "local-ocr-engine-${target}.exe"
   else
     echo "local-ocr-engine-${target}"
+  fi
+}
+
+run_python() {
+  if command -v python3 >/dev/null; then
+    python3 "$@"
+  elif command -v py >/dev/null; then
+    py -3 "$@"
+  else
+    python "$@"
   fi
 }
 
