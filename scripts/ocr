@@ -72,13 +72,18 @@ if [[ -z "$ENGINE" ]]; then
 fi
 [[ -n "$ENGINE" ]] || json_err engine_missing "bash scripts/doctor.sh"
 
-WORKDIR="${TMPDIR:-/tmp}/local-ocr-$$"
-cleanup() { rm -rf "$WORKDIR"; }
+WORKDIR=""
+cleanup() {
+  if [[ -n "$WORKDIR" && -d "$WORKDIR" ]]; then
+    find "$WORKDIR" -delete 2>/dev/null || true
+  fi
+}
 trap cleanup EXIT
-mkdir -p "$WORKDIR"
 
 INPUT="$IMAGE"
 if [[ "$IMAGE" == http://* || "$IMAGE" == https://* ]]; then
+  WORKDIR="${TMPDIR:-/tmp}/local-ocr-$$"
+  mkdir -p "$WORKDIR"
   INPUT="$WORKDIR/input"
   curl -fsSL --retry 2 -o "$INPUT" "$IMAGE" || json_err download_failed
 elif [[ ! -f "$IMAGE" ]]; then
