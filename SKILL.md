@@ -1,6 +1,6 @@
 ---
 name: local-ocr
-description: 本地中文 OCR（ocr-rs / PP-OCRv6）。识别本地图片、截图、证件、票据、扫描件中的文字。用户提到 OCR、识别图片、提取文字、识别截图时使用。飞书消息里的图先下载到本地再调用本技能。不要用 Python PaddleOCR 或 RapidOCR。
+description: 本地中文 OCR（ocr-rs / PP-OCRv6）。识别本地图片、截图、证件、票据、扫描件中的文字。用户提到 OCR、识别图片、提取文字、识别截图时使用。飞书消息里的图先下载到本地再调用本技能。
 version: 4.1.1
 metadata:
   requires:
@@ -36,5 +36,3 @@ metadata:
 | `image_not_found` | 向用户要有效路径 |
 | `download_failed` | URL 不可达 |
 | `infer_failed` | 换图或 `--tier medium` |
-
-不要改去调 Python OCR。

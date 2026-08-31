@@ -62,6 +62,9 @@ engine_filename() {
 }
 
 run_python() {
+  # Windows 默认代码页（cp936 等）会把 UTF-8 中文打成「鏅撴槬」
+  export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8}"
+  export PYTHONUTF8="${PYTHONUTF8:-1}"
   if command -v python3 >/dev/null; then
     python3 "$@"
   elif command -v py >/dev/null; then

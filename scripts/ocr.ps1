@@ -1,5 +1,12 @@
 #Requires -Version 5
 $ErrorActionPreference = "Stop"
+$env:PYTHONIOENCODING = "utf-8"
+$env:PYTHONUTF8 = "1"
+$Utf8 = New-Object System.Text.UTF8Encoding $false
+[Console]::OutputEncoding = $Utf8
+[Console]::InputEncoding = $Utf8
+$OutputEncoding = $Utf8
+
 $SkillDir = Split-Path -Parent $PSScriptRoot
 $Format = "text"
 $Tier = "tiny"
@@ -7,8 +14,18 @@ $Robust = $false
 $Image = $null
 $Models = if ($env:LOCAL_OCR_MODELS) { $env:LOCAL_OCR_MODELS } else { Join-Path $env:LOCALAPPDATA "ocr-rs\models" }
 
+function Write-Utf8([string]$s) {
+    $bytes = $Utf8.GetBytes($s)
+    $out = [Console]::OpenStandardOutput()
+    $out.Write($bytes, 0, $bytes.Length)
+    if (-not $s.EndsWith("`n")) {
+        $nl = $Utf8.GetBytes([Environment]::NewLine)
+        $out.Write($nl, 0, $nl.Length)
+    }
+}
+
 function Show-Usage {
-    Write-Error "用法: ocr.ps1 [--tier tiny|small|medium] [--robust] [--format text|json] <image_or_url>"
+    [Console]::Error.WriteLine("用法: ocr.ps1 [--tier tiny|small|medium] [--robust] [--format text|json] <image_or_url>")
     exit 2
 }
 
@@ -16,9 +33,10 @@ function Write-JsonErr($error, $hint) {
     if ($Format -eq "json") {
         $d = @{ ok = $false; error = $error }
         if ($hint) { $d.hint = $hint }
-        $d | ConvertTo-Json -Compress
+        Write-Utf8 (($d | ConvertTo-Json -Compress))
     } else {
-        if ($hint) { Write-Error "error: $error ($hint)" } else { Write-Error "error: $error" }
+        if ($hint) { [Console]::Error.WriteLine("error: $error ($hint)") }
+        else { [Console]::Error.WriteLine("error: $error") }
     }
     exit 1
 }
@@ -50,7 +68,7 @@ if (-not $Image) { Show-Usage }
 
 $Engine = Find-Engine
 if (-not $Engine) {
-    Write-Host "local-ocr: 首次使用，正在准备引擎和模型（无需 Rust）..." -ForegroundColor DarkGray
+    [Console]::Error.WriteLine("local-ocr: 首次使用，正在准备引擎和模型（无需 Rust）...")
     & (Join-Path $PSScriptRoot "doctor.ps1")
     if ($LASTEXITCODE -ne 0) { Write-JsonErr "engine_missing" "powershell -File scripts/doctor.ps1" }
     $Engine = Find-Engine
@@ -70,16 +88,24 @@ try {
 
     $argList = @($inputPath, "--tier", $Tier, "--format", "json", "--models-dir", $Models)
     if ($Robust) { $argList += "--robust" }
-    $raw = & $Engine @argList 2>$null
-    $text = if ($raw -is [array]) { $raw -join "`n" } else { [string]$raw }
-    $start = $text.IndexOf("{")
+    $outFile = Join-Path $work "stdout.txt"
+    $errFile = Join-Path $work "stderr.txt"
+    $p = Start-Process -FilePath $Engine -ArgumentList $argList -Wait -NoNewWindow -PassThru -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+    $raw = [System.IO.File]::ReadAllText($outFile, $Utf8)
+    $start = $raw.IndexOf("{")
     if ($start -lt 0) { Write-JsonErr "infer_failed" $null }
-    $obj = $text.Substring($start) | ConvertFrom-Json
-    if (-not $obj.ok) { Write-JsonErr $obj.error $obj.hint }
+    $jsonText = $raw.Substring($start)
+    $obj = $jsonText | ConvertFrom-Json
+    if (-not $obj.ok -or $p.ExitCode -ne 0) {
+        if ($Format -eq "json") { Write-Utf8 $jsonText }
+        else { Write-JsonErr $obj.error $obj.hint }
+        exit 1
+    }
     if ($Format -eq "json") {
-        $obj | ConvertTo-Json -Depth 6
+        Write-Utf8 $jsonText.Trim()
     } else {
-        if ([string]::IsNullOrWhiteSpace($obj.text)) { "(未识别到文本)" } else { $obj.text }
+        $t = [string]$obj.text
+        if ([string]::IsNullOrWhiteSpace($t)) { Write-Utf8 "(未识别到文本)" } else { Write-Utf8 $t }
     }
 } finally {
     Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
