@@ -1,4 +1,4 @@
-#Requires -Version 5
+﻿#Requires -Version 5
 $ErrorActionPreference = "Stop"
 $Utf8 = New-Object System.Text.UTF8Encoding $false
 [Console]::OutputEncoding = $Utf8

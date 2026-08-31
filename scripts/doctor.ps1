@@ -1,4 +1,4 @@
-#Requires -Version 5
+﻿#Requires -Version 5
 $ErrorActionPreference = "Stop"
 $SkillDir = Split-Path -Parent $PSScriptRoot
 $Repo = if ($env:LOCAL_OCR_RELEASE_REPO) { $env:LOCAL_OCR_RELEASE_REPO } else { "pwh-pwh/local-ocr" }

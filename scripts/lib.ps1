@@ -1,4 +1,4 @@
-#Requires -Version 5
+﻿#Requires -Version 5
 # sourced by ocr.ps1 / doctor.ps1 / download-models.ps1
 
 function Get-OcrModelsDir {
