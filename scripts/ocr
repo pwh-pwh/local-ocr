@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
-# local-ocr 入口。引擎 stdout 应是单段 JSON；抽出第一个对象以防旧二进制夹杂 MNN 日志。
+# local-ocr 入口。准备引擎/模型后把 --format 原样交给引擎，stdout/stderr 直通。
 set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=lib.sh
 source "$SKILL_DIR/scripts/lib.sh"
-export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8}"
-export PYTHONUTF8="${PYTHONUTF8:-1}"
 FORMAT="text"
 TIER="tiny"
 ROBUST=0
@@ -17,16 +15,25 @@ usage() {
   exit 2
 }
 
+json_str() {
+  local s=$1
+  s=${s//\\/\\\\}
+  s=${s//\"/\\\"}
+  s=${s//$'\n'/\\n}
+  s=${s//$'\r'/\\r}
+  s=${s//$'\t'/\\t}
+  printf '"%s"' "$s"
+}
+
 json_err() {
   local error="$1"
   local hint="${2:-}"
   if [[ "$FORMAT" == json ]]; then
-    run_python -c 'import json,sys
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-d={"ok":False,"error":sys.argv[1]}
-hint=sys.argv[2]
-print(json.dumps({**d, **({"hint":hint} if hint else {})}, ensure_ascii=False))' "$error" "$hint"
+    if [[ -n "$hint" ]]; then
+      printf '{"ok":false,"error":%s,"hint":%s}\n' "$(json_str "$error")" "$(json_str "$hint")"
+    else
+      printf '{"ok":false,"error":%s}\n' "$(json_str "$error")"
+    fi
   else
     echo "error: $error${hint:+ ($hint)}" >&2
   fi
@@ -49,6 +56,10 @@ done
 case "$TIER" in
   tiny|small|medium) ;;
   *) json_err invalid_tier "--tier 只能是 tiny / small / medium" ;;
+esac
+case "$FORMAT" in
+  text|json) ;;
+  *) json_err invalid_format "--format 只能是 text / json" ;;
 esac
 
 find_engine() {
@@ -99,44 +110,6 @@ elif [[ ! -f "$IMAGE" ]]; then
   json_err image_not_found "$IMAGE"
 fi
 
-CMD=("$ENGINE" "$INPUT" --tier "$TIER" --format json --models-dir "$MODELS")
+CMD=("$ENGINE" "$INPUT" --tier "$TIER" --format "$FORMAT" --models-dir "$MODELS")
 [[ "$ROBUST" -eq 1 ]] && CMD+=(--robust)
-
-set +e
-RAW="$("${CMD[@]}")"
-STATUS=$?
-set -e
-
-export LOCAL_OCR_FORMAT="$FORMAT"
-export LOCAL_OCR_STATUS="$STATUS"
-printf '%s' "$RAW" | run_python -c '
-import json, os, sys
-for stream in (sys.stdout, sys.stderr):
-    if hasattr(stream, "reconfigure"):
-        stream.reconfigure(encoding="utf-8", errors="replace")
-fmt = os.environ["LOCAL_OCR_FORMAT"]
-status = int(os.environ["LOCAL_OCR_STATUS"])
-raw = sys.stdin.buffer.read().decode("utf-8", "replace") if hasattr(sys.stdin, "buffer") else sys.stdin.read()
-start = raw.find("{")
-if start < 0:
-    err = {"ok": False, "error": "infer_failed"}
-    if fmt == "json":
-        print(json.dumps(err, ensure_ascii=False))
-    else:
-        print("error: infer_failed", file=sys.stderr)
-    sys.exit(1)
-obj, _ = json.JSONDecoder().raw_decode(raw[start:])
-if not obj.get("ok", False) or status != 0:
-    if fmt == "json":
-        print(json.dumps(obj, ensure_ascii=False))
-    else:
-        print("error: %s" % obj.get("error", "infer_failed"), file=sys.stderr)
-        if obj.get("hint"):
-            print(obj["hint"], file=sys.stderr)
-    sys.exit(1)
-if fmt == "json":
-    print(json.dumps(obj, ensure_ascii=False))
-else:
-    text = obj.get("text") or ""
-    print(text if text else "(未识别到文本)")
-'
+"${CMD[@]}"

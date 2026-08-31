@@ -61,19 +61,6 @@ engine_filename() {
   fi
 }
 
-run_python() {
-  # Windows 默认代码页（cp936 等）会把 UTF-8 中文打成「鏅撴槬」
-  export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8}"
-  export PYTHONUTF8="${PYTHONUTF8:-1}"
-  if command -v python3 >/dev/null; then
-    python3 "$@"
-  elif command -v py >/dev/null; then
-    py -3 "$@"
-  else
-    python "$@"
-  fi
-}
-
 read_release_tag() {
   local ver
   ver="$(sed -n 's/^version = "\([^"]*\)"/\1/p' "$SKILL_DIR/engine/Cargo.toml" | head -1)"

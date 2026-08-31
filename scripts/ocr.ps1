@@ -1,7 +1,5 @@
 #Requires -Version 5
 $ErrorActionPreference = "Stop"
-$env:PYTHONIOENCODING = "utf-8"
-$env:PYTHONUTF8 = "1"
 $Utf8 = New-Object System.Text.UTF8Encoding $false
 [Console]::OutputEncoding = $Utf8
 [Console]::InputEncoding = $Utf8
@@ -59,34 +57,6 @@ function ConvertTo-ArgString([string[]]$parts) {
     }) -join ' '
 }
 
-function Get-FirstJsonObject([string]$raw) {
-    $start = $raw.IndexOf("{")
-    if ($start -lt 0) { return $null }
-    $depth = 0
-    $inStr = $false
-    $escape = $false
-    for ($i = $start; $i -lt $raw.Length; $i++) {
-        $c = $raw[$i]
-        if ($inStr) {
-            if ($escape) { $escape = $false; continue }
-            if ($c -eq [char]0x5C) { $escape = $true; continue }
-            if ($c -eq [char]'"') { $inStr = $false }
-            continue
-        }
-        switch ($c) {
-            '"' { $inStr = $true }
-            '{' { $depth++ }
-            '}' {
-                $depth--
-                if ($depth -eq 0) {
-                    return $raw.Substring($start, $i - $start + 1)
-                }
-            }
-        }
-    }
-    return $null
-}
-
 $i = 0
 while ($i -lt $args.Count) {
     switch ($args[$i]) {
@@ -103,6 +73,9 @@ while ($i -lt $args.Count) {
 if (-not $Image) { Show-Usage }
 if ($Tier -notin @("tiny", "small", "medium")) {
     Write-JsonErr "invalid_tier" "--tier 只能是 tiny / small / medium"
+}
+if ($Format -notin @("text", "json")) {
+    Write-JsonErr "invalid_format" "--format 只能是 text / json"
 }
 
 $Engine = Find-Engine
@@ -121,6 +94,7 @@ try {
 }
 
 $work = $null
+$code = 0
 try {
     $inputPath = $Image
     if ($Image -match '^https?://') {
@@ -132,7 +106,7 @@ try {
         Write-JsonErr "image_not_found" $Image
     }
 
-    $argList = @($inputPath, "--tier", $Tier, "--format", "json", "--models-dir", $Models)
+    $argList = @($inputPath, "--tier", $Tier, "--format", $Format, "--models-dir", $Models)
     if ($Robust) { $argList += "--robust" }
 
     $psi = New-Object System.Diagnostics.ProcessStartInfo
@@ -153,21 +127,9 @@ try {
     $err = $proc.StandardError.ReadToEnd()
     $proc.WaitForExit()
     if ($err) { [Console]::Error.Write($err) }
-
-    $jsonText = Get-FirstJsonObject $raw
-    if (-not $jsonText) { Write-JsonErr "infer_failed" $err }
-    $obj = $jsonText | ConvertFrom-Json
-    if (-not $obj.ok -or $proc.ExitCode -ne 0) {
-        if ($Format -eq "json") { Write-Utf8 $jsonText }
-        else { Write-JsonErr $obj.error $obj.hint }
-        exit 1
-    }
-    if ($Format -eq "json") {
-        Write-Utf8 $jsonText
-    } else {
-        $t = [string]$obj.text
-        if ([string]::IsNullOrWhiteSpace($t)) { Write-Utf8 "(未识别到文本)" } else { Write-Utf8 $t }
-    }
+    if ($raw) { Write-Utf8 $raw }
+    $code = $proc.ExitCode
 } finally {
     if ($work) { Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue }
 }
+exit $code

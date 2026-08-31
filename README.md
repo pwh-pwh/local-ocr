@@ -26,7 +26,7 @@ powershell -ExecutionPolicy Bypass -File scripts\ocr.ps1 photo.jpg
 
 准备顺序：
 
-1. 仓库内 `prebuilt/<target>/`（v4.1.1 起含 Linux x64/ARM、macOS Apple Silicon、Windows x64）
+1. 仓库内 `prebuilt/<target>/`（Linux x64/ARM、macOS Apple Silicon、Windows x64）
 2. 若本机 target 没有预编译包，再从 GitHub Release 下载
 3. 都没有才本机 `cargo build`
 
