@@ -27,7 +27,7 @@ powershell -ExecutionPolicy Bypass -File scripts\ocr.ps1 photo.jpg
 准备顺序：
 
 1. 仓库内 `prebuilt/<target>/`（git 里带 **Linux x86_64**）
-2. GitHub Release：https://github.com/pwh-pwh/local-ocr/releases（含 **Windows x64 `.exe`**、macOS、Linux ARM）
+2. GitHub Release：https://github.com/pwh-pwh/local-ocr/releases（含 **Windows x64 `.exe`**、macOS Apple Silicon、Linux ARM）
 3. 都没有才本机 `cargo build`
 
 模型目录：Linux/macOS 为 `~/.cache/ocr-rs/models/`，Windows 为 `%LOCALAPPDATA%\ocr-rs\models`（可用 `LOCAL_OCR_MODELS` 改）。

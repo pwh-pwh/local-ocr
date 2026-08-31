@@ -1,6 +1,6 @@
 [package]
 name = "local-ocr-engine"
-version = "4.1.0"
+version = "4.1.1"
 edition = "2021"
 description = "local-ocr skill engine: ocr-rs + PP-OCRv6"
 license = "Apache-2.0"
