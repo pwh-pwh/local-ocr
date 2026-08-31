@@ -79,3 +79,31 @@ read_release_tag() {
   ver="$(sed -n 's/^version = "\([^"]*\)"/\1/p' "$SKILL_DIR/engine/Cargo.toml" | head -1)"
   echo "v${ver}"
 }
+
+model_names() {
+  local tier="$1"
+  echo "PP-OCRv6_${tier}_det.mnn"
+  echo "PP-OCRv6_${tier}_rec.mnn"
+  echo "ppocr_keys_v6_${tier}.txt"
+}
+
+model_file_ok() {
+  local f="$1"
+  local label="${2:-$1}"
+  label="${label%.part}"
+  [[ -f "$f" ]] || return 1
+  local sz
+  sz="$(wc -c < "$f" | tr -d ' ')"
+  if [[ "$label" == *.txt ]]; then
+    [[ "$sz" -ge 1000 ]]
+  else
+    [[ "$sz" -ge 100000 ]]
+  fi
+}
+
+models_ready() {
+  local dir="$1" tier="$2" name
+  while IFS= read -r name; do
+    model_file_ok "$dir/$name" || return 1
+  done < <(model_names "$tier")
+}

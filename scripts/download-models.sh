@@ -14,20 +14,30 @@ DEST="$(default_models_dir)"
 BASE="${OCR_RS_MODEL_BASE:-https://raw.githubusercontent.com/zibo-chen/rust-paddle-ocr/next/models}"
 mkdir -p "$DEST"
 
-files=(
-  "PP-OCRv6_${TIER}_det.mnn"
-  "PP-OCRv6_${TIER}_rec.mnn"
-  "ppocr_keys_v6_${TIER}.txt"
-)
+if models_ready "$DEST" "$TIER"; then
+  exit 0
+fi
 
 echo "下载 PP-OCRv6 $TIER → $DEST"
-for name in "${files[@]}"; do
+while IFS= read -r name; do
   dest="$DEST/$name"
-  if [[ -s "$dest" ]]; then
+  if model_file_ok "$dest"; then
     echo "已存在: $name"
     continue
   fi
   echo "获取: $name"
-  curl -fL --retry 3 -o "$dest" "$BASE/$name"
-done
+  tmp="$dest.part"
+  rm -f "$tmp"
+  if ! curl -fL --retry 3 -o "$tmp" "$BASE/$name"; then
+    rm -f "$tmp"
+    echo "下载失败: $name" >&2
+    exit 1
+  fi
+  if ! model_file_ok "$tmp" "$name"; then
+    rm -f "$tmp"
+    echo "下载不完整: $name" >&2
+    exit 1
+  fi
+  mv -f "$tmp" "$dest"
+done < <(model_names "$TIER")
 echo "完成。"

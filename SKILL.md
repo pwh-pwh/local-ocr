@@ -19,20 +19,21 @@ metadata:
 "<skill_dir>/scripts/ocr" [--tier tiny|small|medium] [--robust] [--format text|json] <image_or_url>
 ```
 
-- 第一次调用会自动准备引擎和 tiny 模型（Linux / macOS Apple Silicon / Windows x64 用仓库 `prebuilt/`）
+- 第一次调用会自动准备引擎和当前 `--tier` 的模型（Linux / macOS Apple Silicon / Windows x64 用仓库 `prebuilt/`）
 - Linux/macOS：`bash "<skill_dir>/scripts/doctor.sh"`
 - Windows：`powershell -File "<skill_dir>/scripts/doctor.ps1"`（或 `scripts\doctor.cmd`）
 - 默认 `--format text`：stdout 每行一条识别文本，不要再加说明
 - `--format json`：`ok`、`text`、`lines`、`infer_ms`
 - 图片可以是本地路径或 http(s) URL
 - 混排竖排加 `--robust`
-- 要更高精度用 `--tier medium`
+- 要更高精度用 `--tier medium`（会自动下载该档模型）
 
 ## 失败
 
 | error | 处理 |
 |---|---|
-| `engine_missing` / `model_missing` | Unix：`bash scripts/doctor.sh`；Windows：`scripts\doctor.cmd` |
+| `engine_missing` | Unix：`bash scripts/doctor.sh`；Windows：`scripts\doctor.cmd` |
+| `model_missing` | 检查网络；或设 `OCR_RS_MODEL_BASE` |
 | `image_not_found` | 向用户要有效路径 |
 | `download_failed` | URL 不可达 |
 | `infer_failed` | 换图或 `--tier medium` |

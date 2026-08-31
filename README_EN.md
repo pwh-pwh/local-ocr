@@ -26,4 +26,4 @@ powershell -ExecutionPolicy Bypass -File scripts\ocr.ps1 photo.jpg
 2. GitHub Releases if the current target is not in the repo
 3. Local `cargo build` only if neither is available
 
-Models: `~/.cache/ocr-rs/models/` on Unix, `%LOCALAPPDATA%\ocr-rs\models` on Windows.
+Models: `~/.cache/ocr-rs/models/` on Unix, `%LOCALAPPDATA%\ocr-rs\models` on Windows. The OCR entry downloads the selected `--tier` automatically.

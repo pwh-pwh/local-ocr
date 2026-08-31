@@ -1,10 +1,55 @@
+use std::io::Write;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::Instant;
 
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use ocr_rs::{OcrEngine, OcrEngineConfig, RecognizeOptions, RotatedTextMode};
 use serde::Serialize;
+
+/// MNN prints capability lines to stdout. Mute fd 1 around engine lifetime so
+/// JSON/text on stdout stays a single payload. fflush(NULL) before restore so
+/// C stdio does not dump the buffered line after we give stdout back.
+static SAVED_STDOUT_FD: AtomicI32 = AtomicI32::new(-1);
+
+fn mute_stdout() {
+    let _ = std::io::stdout().flush();
+    unsafe {
+        if SAVED_STDOUT_FD.load(Ordering::SeqCst) >= 0 {
+            return;
+        }
+        libc::fflush(std::ptr::null_mut());
+        let saved = libc::dup(1);
+        if saved < 0 {
+            return;
+        }
+        #[cfg(windows)]
+        let path: &[u8] = b"NUL\0";
+        #[cfg(not(windows))]
+        let path: &[u8] = b"/dev/null\0";
+        let nullfd = libc::open(path.as_ptr() as *const libc::c_char, libc::O_WRONLY);
+        if nullfd < 0 {
+            libc::close(saved);
+            return;
+        }
+        libc::dup2(nullfd, 1);
+        libc::close(nullfd);
+        SAVED_STDOUT_FD.store(saved, Ordering::SeqCst);
+    }
+}
+
+fn unmute_stdout() {
+    unsafe {
+        libc::fflush(std::ptr::null_mut());
+        let saved = SAVED_STDOUT_FD.swap(-1, Ordering::SeqCst);
+        if saved >= 0 {
+            libc::dup2(saved, 1);
+            libc::close(saved);
+        }
+    }
+    let _ = std::io::stdout().flush();
+}
 
 #[derive(Parser, Debug)]
 #[command(name = "local-ocr-engine", version, about = "ocr-rs PP-OCRv6 engine")]
@@ -57,6 +102,7 @@ fn default_models_dir() -> PathBuf {
 }
 
 fn fail(format: OutputFormat, error: &str, hint: Option<&str>) -> ! {
+    unmute_stdout();
     match format {
         OutputFormat::Json => {
             let mut v = serde_json::json!({ "ok": false, "error": error });
@@ -110,7 +156,7 @@ fn main() -> Result<()> {
             fail(
                 format,
                 "model_missing",
-                Some("bash scripts/download-models.sh"),
+                Some(&format!("scripts/download-models.sh {}", args.tier)),
             );
         }
     }
@@ -118,13 +164,6 @@ fn main() -> Result<()> {
     let config = OcrEngineConfig::new()
         .with_threads(args.threads)
         .with_min_result_confidence(args.min_confidence);
-
-    let load_started = Instant::now();
-    let engine = match OcrEngine::new(&det, &rec, &keys, Some(config)) {
-        Ok(engine) => engine,
-        Err(e) => fail(format, "infer_failed", Some(&e.to_string())),
-    };
-    let load_elapsed = load_started.elapsed();
 
     let image = match image::open(&image_path) {
         Ok(image) => image,
@@ -137,12 +176,22 @@ fn main() -> Result<()> {
         RecognizeOptions::default()
     };
 
+    mute_stdout();
+    let load_started = Instant::now();
+    let engine = match OcrEngine::new(&det, &rec, &keys, Some(config)) {
+        Ok(engine) => engine,
+        Err(e) => fail(format, "infer_failed", Some(&e.to_string())),
+    };
+    let load_elapsed = load_started.elapsed();
+
     let infer_started = Instant::now();
     let results = match engine.recognize_with_options(&image, &options) {
         Ok(results) => results,
         Err(e) => fail(format, "infer_failed", Some(&e.to_string())),
     };
     let infer_elapsed = infer_started.elapsed();
+    drop(engine);
+    unmute_stdout();
 
     let lines: Vec<LineOut> = results
         .into_iter()

@@ -8,11 +8,12 @@ $Utf8 = New-Object System.Text.UTF8Encoding $false
 $OutputEncoding = $Utf8
 
 $SkillDir = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "lib.ps1")
 $Format = "text"
 $Tier = "tiny"
 $Robust = $false
 $Image = $null
-$Models = if ($env:LOCAL_OCR_MODELS) { $env:LOCAL_OCR_MODELS } else { Join-Path $env:LOCALAPPDATA "ocr-rs\models" }
+$Models = Get-OcrModelsDir
 
 function Write-Utf8([string]$s) {
     $bytes = $Utf8.GetBytes($s)
@@ -51,6 +52,41 @@ function Find-Engine {
     return $null
 }
 
+function ConvertTo-ArgString([string[]]$parts) {
+    ($parts | ForEach-Object {
+        if ($_ -notmatch '[ \t"]') { return $_ }
+        '"' + (($_ -replace '\\', '\\') -replace '"', '\"') + '"'
+    }) -join ' '
+}
+
+function Get-FirstJsonObject([string]$raw) {
+    $start = $raw.IndexOf("{")
+    if ($start -lt 0) { return $null }
+    $depth = 0
+    $inStr = $false
+    $escape = $false
+    for ($i = $start; $i -lt $raw.Length; $i++) {
+        $c = $raw[$i]
+        if ($inStr) {
+            if ($escape) { $escape = $false; continue }
+            if ($c -eq [char]0x5C) { $escape = $true; continue }
+            if ($c -eq [char]'"') { $inStr = $false }
+            continue
+        }
+        switch ($c) {
+            '"' { $inStr = $true }
+            '{' { $depth++ }
+            '}' {
+                $depth--
+                if ($depth -eq 0) {
+                    return $raw.Substring($start, $i - $start + 1)
+                }
+            }
+        }
+    }
+    return $null
+}
+
 $i = 0
 while ($i -lt $args.Count) {
     switch ($args[$i]) {
@@ -65,6 +101,9 @@ while ($i -lt $args.Count) {
     }
 }
 if (-not $Image) { Show-Usage }
+if ($Tier -notin @("tiny", "small", "medium")) {
+    Write-JsonErr "invalid_tier" "--tier 只能是 tiny / small / medium"
+}
 
 $Engine = Find-Engine
 if (-not $Engine) {
@@ -75,11 +114,18 @@ if (-not $Engine) {
 }
 if (-not $Engine) { Write-JsonErr "engine_missing" "powershell -File scripts/doctor.ps1" }
 
-$work = Join-Path $env:TEMP ("local-ocr-" + [guid]::NewGuid().ToString("n"))
-New-Item -ItemType Directory -Path $work | Out-Null
+try {
+    Install-OcrModels -Tier $Tier
+} catch {
+    Write-JsonErr "model_missing" $_.Exception.Message
+}
+
+$work = $null
 try {
     $inputPath = $Image
     if ($Image -match '^https?://') {
+        $work = Join-Path $env:TEMP ("local-ocr-" + [guid]::NewGuid().ToString("n"))
+        New-Item -ItemType Directory -Path $work | Out-Null
         $inputPath = Join-Path $work "input"
         try { Invoke-WebRequest -Uri $Image -OutFile $inputPath -UseBasicParsing } catch { Write-JsonErr "download_failed" $null }
     } elseif (-not (Test-Path $Image)) {
@@ -88,25 +134,40 @@ try {
 
     $argList = @($inputPath, "--tier", $Tier, "--format", "json", "--models-dir", $Models)
     if ($Robust) { $argList += "--robust" }
-    $outFile = Join-Path $work "stdout.txt"
-    $errFile = Join-Path $work "stderr.txt"
-    $p = Start-Process -FilePath $Engine -ArgumentList $argList -Wait -NoNewWindow -PassThru -RedirectStandardOutput $outFile -RedirectStandardError $errFile
-    $raw = [System.IO.File]::ReadAllText($outFile, $Utf8)
-    $start = $raw.IndexOf("{")
-    if ($start -lt 0) { Write-JsonErr "infer_failed" $null }
-    $jsonText = $raw.Substring($start)
+
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $Engine
+    $psi.Arguments = ConvertTo-ArgString $argList
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.CreateNoWindow = $true
+    $psi.StandardOutputEncoding = $Utf8
+    if ($psi.PSObject.Properties.Name -contains "StandardErrorEncoding") {
+        $psi.StandardErrorEncoding = $Utf8
+    }
+    $proc = New-Object System.Diagnostics.Process
+    $proc.StartInfo = $psi
+    [void]$proc.Start()
+    $raw = $proc.StandardOutput.ReadToEnd()
+    $err = $proc.StandardError.ReadToEnd()
+    $proc.WaitForExit()
+    if ($err) { [Console]::Error.Write($err) }
+
+    $jsonText = Get-FirstJsonObject $raw
+    if (-not $jsonText) { Write-JsonErr "infer_failed" $err }
     $obj = $jsonText | ConvertFrom-Json
-    if (-not $obj.ok -or $p.ExitCode -ne 0) {
+    if (-not $obj.ok -or $proc.ExitCode -ne 0) {
         if ($Format -eq "json") { Write-Utf8 $jsonText }
         else { Write-JsonErr $obj.error $obj.hint }
         exit 1
     }
     if ($Format -eq "json") {
-        Write-Utf8 $jsonText.Trim()
+        Write-Utf8 $jsonText
     } else {
         $t = [string]$obj.text
         if ([string]::IsNullOrWhiteSpace($t)) { Write-Utf8 "(未识别到文本)" } else { Write-Utf8 $t }
     }
 } finally {
-    Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
+    if ($work) { Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue }
 }

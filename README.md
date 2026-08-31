@@ -42,11 +42,7 @@ scripts/ocr --tier medium --robust scan.png
 
 默认每行一条文本。JSON 含 `ok`、`text`、`lines`。
 
-档位：`tiny`（默认）/ `small` / `medium`。medium 需额外模型：
-
-```bash
-bash scripts/download-models.sh medium
-```
+档位：`tiny`（默认）/ `small` / `medium`。入口会按 `--tier` 自动下载缺失模型。
 
 ## 环境变量
 
@@ -63,7 +59,9 @@ bash scripts/download-models.sh medium
 local-ocr/
 ├── SKILL.md
 ├── scripts/ocr
+├── scripts/ocr.ps1
 ├── scripts/doctor.sh
+├── scripts/download-models.sh
 ├── prebuilt/                 # 预编译引擎（按 target）
 └── engine/                   # 源码（仅在没有预编译包时才编译）
 ```

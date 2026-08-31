@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# local-ocr 入口。引擎 stdout 可能夹杂 MNN 日志，这里抽出第一个 JSON。
+# local-ocr 入口。引擎 stdout 应是单段 JSON；抽出第一个对象以防旧二进制夹杂 MNN 日志。
 set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -46,6 +46,10 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -z "$IMAGE" && $# -gt 0 ]] && IMAGE="$1"
 [[ -z "$IMAGE" ]] && usage
+case "$TIER" in
+  tiny|small|medium) ;;
+  *) json_err invalid_tier "--tier 只能是 tiny / small / medium" ;;
+esac
 
 find_engine() {
   if [[ -n "${LOCAL_OCR_BIN:-}" && ( -x "${LOCAL_OCR_BIN}" || -f "${LOCAL_OCR_BIN}" ) ]]; then
@@ -72,6 +76,11 @@ if [[ -z "$ENGINE" ]]; then
 fi
 [[ -n "$ENGINE" ]] || json_err engine_missing "bash scripts/doctor.sh"
 
+MODELS="$(default_models_dir)"
+if ! models_ready "$MODELS" "$TIER"; then
+  bash "$SKILL_DIR/scripts/download-models.sh" "$TIER" >&2 || json_err model_missing "bash scripts/download-models.sh $TIER"
+fi
+
 WORKDIR=""
 cleanup() {
   if [[ -n "$WORKDIR" && -d "$WORKDIR" ]]; then
@@ -90,11 +99,11 @@ elif [[ ! -f "$IMAGE" ]]; then
   json_err image_not_found "$IMAGE"
 fi
 
-CMD=("$ENGINE" "$INPUT" --tier "$TIER" --format json --models-dir "$(default_models_dir)")
+CMD=("$ENGINE" "$INPUT" --tier "$TIER" --format json --models-dir "$MODELS")
 [[ "$ROBUST" -eq 1 ]] && CMD+=(--robust)
 
 set +e
-RAW="$("${CMD[@]}" 2>/dev/null)"
+RAW="$("${CMD[@]}")"
 STATUS=$?
 set -e
 

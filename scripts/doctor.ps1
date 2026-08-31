@@ -10,8 +10,8 @@ $Dest = Join-Path $DestDir "local-ocr-engine.exe"
 $Asset = "local-ocr-engine-$Target.exe"
 $Prebuilt = Join-Path $SkillDir "prebuilt\$Target\local-ocr-engine.exe"
 $Force = $args -contains "--force"
-$Models = if ($env:LOCAL_OCR_MODELS) { $env:LOCAL_OCR_MODELS } else { Join-Path $env:LOCALAPPDATA "ocr-rs\models" }
-$ModelBase = if ($env:OCR_RS_MODEL_BASE) { $env:OCR_RS_MODEL_BASE } else { "https://raw.githubusercontent.com/zibo-chen/rust-paddle-ocr/next/models" }
+. (Join-Path $PSScriptRoot "lib.ps1")
+$Models = Get-OcrModelsDir
 
 Write-Host "== local-ocr doctor =="
 Write-Host "平台: $Target  版本: $Tag"
@@ -51,27 +51,9 @@ function Install-Engine {
 "@
 }
 
-function Install-Models {
-    New-Item -ItemType Directory -Force -Path $Models | Out-Null
-    Write-Host "检查 tiny 模型... $Models"
-    $files = @(
-        "PP-OCRv6_tiny_det.mnn",
-        "PP-OCRv6_tiny_rec.mnn",
-        "ppocr_keys_v6_tiny.txt"
-    )
-    foreach ($name in $files) {
-        $path = Join-Path $Models $name
-        if ((Test-Path $path) -and ((Get-Item $path).Length -gt 0)) {
-            Write-Host "已存在: $name"
-            continue
-        }
-        Write-Host "获取: $name"
-        Invoke-WebRequest -Uri "$ModelBase/$name" -OutFile $path -UseBasicParsing
-    }
-}
-
 Install-Engine
-Install-Models
+Write-Host "检查 tiny 模型..."
+Install-OcrModels -Tier "tiny"
 Write-Host "OK  入口: $(Join-Path $SkillDir 'scripts\ocr.ps1')"
 Write-Host "    引擎: $Dest"
 Write-Host "    模型: $Models"
