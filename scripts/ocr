@@ -59,7 +59,14 @@ find_engine() {
 }
 
 ENGINE="$(find_engine || true)"
-[[ -n "$ENGINE" ]] || json_err engine_missing "在技能目录执行 bash scripts/doctor.sh"
+if [[ -z "$ENGINE" ]]; then
+  echo "local-ocr: 首次使用，正在准备引擎和模型（无需 Rust）..." >&2
+  if ! bash "$SKILL_DIR/scripts/doctor.sh" >&2; then
+    json_err engine_missing "bash scripts/doctor.sh"
+  fi
+  ENGINE="$(find_engine || true)"
+fi
+[[ -n "$ENGINE" ]] || json_err engine_missing "bash scripts/doctor.sh"
 
 WORKDIR="${TMPDIR:-/tmp}/local-ocr-$$"
 cleanup() { rm -rf "$WORKDIR"; }

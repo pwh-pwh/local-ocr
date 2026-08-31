@@ -4,12 +4,12 @@ description: 本地中文 OCR（ocr-rs / PP-OCRv6）。识别本地图片、截�
 version: 4.0.0
 metadata:
   requires:
-    bins: ["curl"]
+    bins: ["curl", "python3"]
 ---
 
 # local-ocr
 
-本机 PP-OCRv6（ocr-rs + MNN）。默认 tiny，印刷体中英文够用。
+本机 PP-OCRv6（ocr-rs + MNN）。默认 tiny。用户**不用装 Rust**。
 
 ## 入口
 
@@ -19,22 +19,21 @@ metadata:
 "<skill_dir>/scripts/ocr" [--tier tiny|small|medium] [--robust] [--format text|json] <image_or_url>
 ```
 
-- 缺引擎或模型：先 `bash "<skill_dir>/scripts/doctor.sh"`
+- 第一次调用会自动准备引擎和 tiny 模型（Linux x64 用仓库预编译包；其它平台从 GitHub Release 拉）
+- 也可手动：`bash "<skill_dir>/scripts/doctor.sh"`
 - 默认 `--format text`：stdout 每行一条识别文本，不要再加说明
-- `--format json`：`ok`、`text`、`lines`（含 bbox/confidence）、`infer_ms`
+- `--format json`：`ok`、`text`、`lines`、`infer_ms`
 - 图片可以是本地路径或 http(s) URL
 - 混排竖排加 `--robust`
-- 要更高精度再用 `--tier medium`（更慢）
+- 要更高精度用 `--tier medium`
 
 ## 失败
 
-stdout/stderr 里的 `error`：
-
 | error | 处理 |
 |---|---|
-| `engine_missing` / `model_missing` | 跑 `scripts/doctor.sh` |
+| `engine_missing` / `model_missing` | `bash scripts/doctor.sh`（需能访问 GitHub 或已有预编译包） |
 | `image_not_found` | 向用户要有效路径 |
 | `download_failed` | URL 不可达 |
-| `infer_failed` | 换图或改 `--tier medium` |
+| `infer_failed` | 换图或 `--tier medium` |
 
 不要改去调 Python OCR。

@@ -1,28 +1,23 @@
 # local-ocr
 
-Local Chinese OCR skill powered by [ocr-rs](https://crates.io/crates/ocr-rs) (PaddleOCR PP-OCRv6 + MNN). RapidOCR / Python is no longer used.
+Local Chinese OCR skill using [ocr-rs](https://crates.io/crates/ocr-rs) (PaddleOCR PP-OCRv6 + MNN).
 
-Apache License 2.0.
+**No Rust install required** for normal use. Apache License 2.0.
 
 ## Setup
 
-Requires rustc, cargo, cmake, and clang for the first engine build.
+Place this directory on the Agent skills path, then:
 
 ```bash
-cd <skill_dir>
 bash scripts/doctor.sh
-```
-
-Models live in `~/.cache/ocr-rs/models/` (override with `LOCAL_OCR_MODELS`).
-
-## Usage
-
-```bash
+# or just:
 scripts/ocr photo.jpg
-scripts/ocr --format json --tier tiny photo.jpg
-scripts/ocr --tier medium --robust scan.png
 ```
 
-Default stdout is one text line per region. JSON includes `ok`, `text`, and `lines`.
+`doctor.sh` uses, in order:
 
-Tiers: `tiny` (default, fast), `small`, `medium` (more accurate).
+1. `prebuilt/<target>/` in this repo (Linux x86_64 is included)
+2. GitHub Releases: https://github.com/pwh-pwh/rapid-ocr/releases
+3. Local `cargo build` only if neither is available
+
+Models go to `~/.cache/ocr-rs/models/`.
