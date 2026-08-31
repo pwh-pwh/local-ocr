@@ -21,7 +21,7 @@ scripts/ocr photo.jpg
 `doctor.sh` 顺序：
 
 1. 仓库内 `prebuilt/<target>/`（目前带 **Linux x86_64**）
-2. GitHub Release：https://github.com/pwh-pwh/rapid-ocr/releases
+2. GitHub Release：https://github.com/pwh-pwh/local-ocr/releases
 3. 都没有才尝试本机 `cargo build`（这时才需要 Rust / cmake / clang）
 
 模型下载到 `~/.cache/ocr-rs/models/`（可用 `LOCAL_OCR_MODELS` 改）。
@@ -48,7 +48,7 @@ bash scripts/download-models.sh medium
 |---|---|
 | `LOCAL_OCR_BIN` | 自定义引擎二进制 |
 | `LOCAL_OCR_MODELS` | 模型目录 |
-| `LOCAL_OCR_RELEASE_REPO` | Release 仓库，默认 `pwh-pwh/rapid-ocr` |
+| `LOCAL_OCR_RELEASE_REPO` | Release 仓库，默认 `pwh-pwh/local-ocr` |
 | `OCR_RS_MODEL_BASE` | 模型下载 URL 前缀 |
 
 ## 结构

@@ -17,7 +17,7 @@ scripts/ocr photo.jpg
 `doctor.sh` uses, in order:
 
 1. `prebuilt/<target>/` in this repo (Linux x86_64 is included)
-2. GitHub Releases: https://github.com/pwh-pwh/rapid-ocr/releases
+2. GitHub Releases: https://github.com/pwh-pwh/local-ocr/releases
 3. Local `cargo build` only if neither is available
 
 Models go to `~/.cache/ocr-rs/models/`.

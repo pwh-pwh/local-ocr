@@ -12,7 +12,7 @@ FORCE=0
 
 TARGET="$(detect_target)"
 TAG="$(read_release_tag)"
-REPO="${LOCAL_OCR_RELEASE_REPO:-pwh-pwh/rapid-ocr}"
+REPO="${LOCAL_OCR_RELEASE_REPO:-pwh-pwh/local-ocr}"
 DEST_DIR="$SKILL_DIR/bin"
 EXT=""
 [[ "$TARGET" == *windows* ]] && EXT=".exe"
